@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReadyScheduledPosts, getBrand, updatePost } from "@/lib/firebase/firestore";
+import { adminDb } from "@/lib/firebase/admin";
 import { postToThreads, postCarouselToThreads, postVideoToThreads } from "@/lib/threads/client";
-import { Timestamp } from "firebase/firestore";
-
-// Vercel Cron から毎分呼ばれる（vercel.json で設定）
-// 開発時は Authorization ヘッダーなしでも動作する
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { Post, Brand } from "@/types";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -16,7 +14,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const posts = await getReadyScheduledPosts();
+    const db = adminDb();
+    const now = Timestamp.now();
+
+    // Admin SDK で直接クエリ（セキュリティルール不要）
+    const snap = await db.collection("posts")
+      .where("status", "==", "scheduled")
+      .get();
+
+    const posts = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as Post & { scheduledAt: Timestamp }))
+      .filter((p) => p.scheduledAt && p.scheduledAt.toMillis() <= now.toMillis());
+
     console.log(`[Cron] 配信待ち投稿数: ${posts.length}`);
 
     if (posts.length === 0) {
@@ -28,7 +37,9 @@ export async function GET(req: NextRequest) {
 
     for (const post of posts) {
       try {
-        const brand = await getBrand(post.brandId);
+        const brandSnap = await db.collection("brands").doc(post.brandId).get();
+        const brand = brandSnap.data() as Brand | undefined;
+
         if (!brand?.threadsUserId || !brand?.threadsAccessToken) {
           throw new Error("Threads 認証情報が見つかりません");
         }
@@ -36,13 +47,11 @@ export async function GET(req: NextRequest) {
         let threadsPostId: string;
         if (post.videoUrl) {
           threadsPostId = await postVideoToThreads(
-            brand.threadsUserId, brand.threadsAccessToken,
-            post.videoUrl, post.content
+            brand.threadsUserId, brand.threadsAccessToken, post.videoUrl, post.content
           );
         } else if (post.imageUrls && post.imageUrls.length >= 2) {
           threadsPostId = await postCarouselToThreads(
-            brand.threadsUserId, brand.threadsAccessToken,
-            post.imageUrls, post.content
+            brand.threadsUserId, brand.threadsAccessToken, post.imageUrls, post.content
           );
         } else {
           threadsPostId = await postToThreads(
@@ -51,22 +60,27 @@ export async function GET(req: NextRequest) {
           );
         }
 
-        await updatePost(post.id, {
+        await db.collection("posts").doc(post.id).update({
           status: "published",
-          publishedAt: Timestamp.now(),
+          publishedAt: FieldValue.serverTimestamp(),
           threadsPostId,
+          updatedAt: FieldValue.serverTimestamp(),
         });
         succeeded++;
       } catch (e) {
-        console.error(`Scheduled post ${post.id} failed:`, e);
-        await updatePost(post.id, { status: "failed" } as Parameters<typeof updatePost>[1]);
+        console.error(`[Cron] post ${post.id} failed:`, e);
+        await db.collection("posts").doc(post.id).update({
+          status: "failed",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
         failed++;
       }
     }
 
     return NextResponse.json({ processed: posts.length, succeeded, failed });
   } catch (e) {
-    console.error("Cron error:", e);
-    return NextResponse.json({ error: "処理に失敗しました" }, { status: 500 });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[Cron] error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
