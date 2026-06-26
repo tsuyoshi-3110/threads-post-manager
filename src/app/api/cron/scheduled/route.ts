@@ -17,9 +17,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const posts = await getReadyScheduledPosts();
+    console.log(`[Cron] 配信待ち投稿数: ${posts.length}`);
 
     if (posts.length === 0) {
-      return NextResponse.json({ processed: 0, succeeded: 0, failed: 0 });
+      return NextResponse.json({ processed: 0, succeeded: 0, failed: 0, message: "配信待ち投稿なし" });
     }
 
     let succeeded = 0;

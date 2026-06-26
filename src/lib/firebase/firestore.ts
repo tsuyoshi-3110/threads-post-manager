@@ -131,13 +131,15 @@ export const deletePost = async (postId: string) => {
 };
 
 // 予約投稿：scheduledAt が過去のもの（cron用）
+// 複合インデックス不要のため status のみでフィルタし、JS 側で時刻チェック
 export const getReadyScheduledPosts = async (): Promise<Post[]> => {
   const now = Timestamp.now();
   const q = query(
     collection(db(), "posts"),
-    where("status", "==", "scheduled"),
-    where("scheduledAt", "<=", now)
+    where("status", "==", "scheduled")
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Post));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Post))
+    .filter((p) => p.scheduledAt && p.scheduledAt.toMillis() <= now.toMillis());
 };
