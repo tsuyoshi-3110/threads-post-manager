@@ -56,7 +56,16 @@ export const Sidebar = () => {
         </ul>
       </nav>
 
-      <div className="border-t border-gray-200 p-3 dark:border-gray-700">
+      <div className="border-t border-gray-200 p-3 dark:border-gray-700 space-y-1">
+        <a
+          href="https://www.threads.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <span>🧵</span>
+          Threads を開く
+        </a>
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
