@@ -17,7 +17,7 @@ const toLocalDateTimeString = (date: Date) => {
 };
 
 export default function ScheduledPage() {
-  const { posts, loading, remove } = usePosts("scheduled");
+  const { posts, loading, remove, refetch } = usePosts("scheduled");
   const { brands } = useBrands();
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<string | null>(null);
@@ -63,6 +63,7 @@ export default function ScheduledPage() {
         scheduledAt: Timestamp.fromDate(new Date(editDateTime)),
       });
       setEditPost(null);
+      await refetch();
     } catch {
       alert("保存に失敗しました");
     } finally {
