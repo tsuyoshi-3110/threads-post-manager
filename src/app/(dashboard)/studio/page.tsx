@@ -36,7 +36,16 @@ export default function StudioPage() {
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [scheduleModal, setScheduleModal] = useState<{ idx: number; content: string } | null>(null);
+  const [scheduleDateTime, setScheduleDateTime] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const toLocalDateTimeString = (date: Date) => {
+    const offset = date.getTimezoneOffset() * 60 * 1000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const defaultScheduleTime = () => toLocalDateTimeString(new Date(Date.now() + 30 * 60 * 1000));
 
   const selectedBrand = brands.find((b) => b.id === selectedBrandId);
 
@@ -157,6 +166,35 @@ export default function StudioPage() {
     }
   };
 
+  const openScheduleModal = (content: string, idx: number) => {
+    setScheduleDateTime(defaultScheduleTime());
+    setScheduleModal({ idx, content });
+  };
+
+  const saveScheduled = async () => {
+    if (!user || !selectedBrandId || !scheduleModal || !scheduleDateTime) return;
+    try {
+      await createPost({
+        brandId: selectedBrandId,
+        userId: user.uid,
+        content: scheduleModal.content,
+        status: "scheduled",
+        scheduledAt: Timestamp.fromDate(new Date(scheduleDateTime)),
+        publishedAt: null,
+        threadsPostId: null,
+        aiGenerated: true,
+        aiPrompt: messages[0]?.content ?? null,
+      });
+      setScheduleModal(null);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `🕐 ${new Date(scheduleDateTime).toLocaleString("ja-JP")} に予約投稿を設定しました！` },
+      ]);
+    } catch {
+      alert("予約設定に失敗しました");
+    }
+  };
+
   const resetChat = () => {
     setMessages([]);
     setInput("");
@@ -254,13 +292,19 @@ export default function StudioPage() {
                           <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800/50 dark:bg-blue-900/20">
                             <p className="mb-2 text-xs font-medium text-blue-600 dark:text-blue-400">投稿案</p>
                             <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-900 dark:text-gray-100">{postText}</p>
-                            <div className="mt-3 flex gap-2">
+                            <div className="mt-3 flex flex-wrap gap-2">
                               <button
                                 onClick={() => saveDraft(postText, idx)}
                                 disabled={savingId === idx}
                                 className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 disabled:opacity-50"
                               >
                                 {savingId === idx ? "保存中..." : "📝 下書き保存"}
+                              </button>
+                              <button
+                                onClick={() => openScheduleModal(postText, idx)}
+                                className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
+                              >
+                                🕐 予約投稿
                               </button>
                               <button
                                 onClick={() => publishNow(postText, idx)}
@@ -307,6 +351,41 @@ export default function StudioPage() {
               {s}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* 予約投稿モーダル */}
+      {scheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800">
+            <h3 className="mb-1 text-base font-bold text-gray-900 dark:text-gray-100">予約投稿</h3>
+            <p className="mb-4 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{scheduleModal.content}</p>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              投稿日時
+            </label>
+            <input
+              type="datetime-local"
+              value={scheduleDateTime}
+              onChange={(e) => setScheduleDateTime(e.target.value)}
+              min={new Date().toISOString().slice(0, 16)}
+              className="mb-4 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setScheduleModal(null)}
+                className="flex-1 rounded-lg border border-gray-300 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={saveScheduled}
+                disabled={!scheduleDateTime}
+                className="flex-1 rounded-lg bg-orange-500 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                予約する
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
