@@ -33,10 +33,10 @@ export async function GET(req: NextRequest) {
         }
 
         let threadsPostId: string;
-        if ((post as { videoUrl?: string }).videoUrl) {
+        if (post.videoUrl) {
           threadsPostId = await postVideoToThreads(
             brand.threadsUserId, brand.threadsAccessToken,
-            (post as { videoUrl: string }).videoUrl, post.content
+            post.videoUrl, post.content
           );
         } else if (post.imageUrls && post.imageUrls.length >= 2) {
           threadsPostId = await postCarouselToThreads(

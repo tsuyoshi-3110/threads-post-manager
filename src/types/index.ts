@@ -26,6 +26,7 @@ export interface Post {
   threadsPostId: string | null;
   imageUrl?: string | null;
   imageUrls?: string[] | null;
+  videoUrl?: string | null;
   aiGenerated: boolean;
   aiPrompt: string | null;
   createdAt: Timestamp;
