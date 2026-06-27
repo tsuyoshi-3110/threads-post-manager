@@ -7,6 +7,8 @@ import { useBrands } from "@/hooks/useBrands";
 import { createPost, updatePost } from "@/lib/firebase/firestore";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { ImageUploader } from "@/components/post/ImageUploader";
+import { VideoUploader } from "@/components/post/VideoUploader";
 import { Timestamp } from "firebase/firestore";
 
 interface Message {
@@ -36,6 +38,9 @@ export default function StudioPage() {
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [mediaType, setMediaType] = useState<"none" | "image" | "video">("none");
+  const [imageUrl, setImageUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
   const [scheduleModal, setScheduleModal] = useState<{ idx: number; content: string } | null>(null);
   const [scheduleDateTime, setScheduleDateTime] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -88,6 +93,11 @@ export default function StudioPage() {
     }
   };
 
+  const mediaPayload = () => ({
+    imageUrl: mediaType === "image" && imageUrl ? imageUrl : null,
+    videoUrl: mediaType === "video" && videoUrl ? videoUrl : null,
+  });
+
   const saveDraft = async (content: string, idx: number) => {
     if (!user || !selectedBrandId) return;
     setSavingId(idx);
@@ -102,6 +112,7 @@ export default function StudioPage() {
         threadsPostId: null,
         aiGenerated: true,
         aiPrompt: messages[0]?.content ?? null,
+        ...mediaPayload(),
       });
       setMessages((prev) => [
         ...prev,
@@ -126,6 +137,7 @@ export default function StudioPage() {
         threadsPostId: null,
         aiGenerated: true,
         aiPrompt: messages[0]?.content ?? null,
+        ...mediaPayload(),
       });
 
       const res = await fetch("/api/threads/publish", {
@@ -137,6 +149,8 @@ export default function StudioPage() {
           content,
           threadsUserId: selectedBrand.threadsUserId,
           threadsAccessToken: selectedBrand.threadsAccessToken,
+          imageUrl: mediaType === "image" ? imageUrl || undefined : undefined,
+          videoUrl: mediaType === "video" ? videoUrl || undefined : undefined,
         }),
       });
 
@@ -184,6 +198,7 @@ export default function StudioPage() {
         threadsPostId: null,
         aiGenerated: true,
         aiPrompt: messages[0]?.content ?? null,
+        ...mediaPayload(),
       });
       setScheduleModal(null);
       setMessages((prev) => [
@@ -335,6 +350,35 @@ export default function StudioPage() {
               </div>
             )}
             <div ref={bottomRef} />
+          </div>
+        )}
+      </div>
+
+      {/* メディア添付 */}
+      <div className="mt-2">
+        <div className="flex gap-2">
+          {(["none", "image", "video"] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => { setMediaType(type); setImageUrl(""); setVideoUrl(""); }}
+              className={`rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
+                mediaType === type
+                  ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+              }`}
+            >
+              {type === "none" ? "📝 テキストのみ" : type === "image" ? "🖼️ 画像" : "🎬 動画"}
+            </button>
+          ))}
+        </div>
+        {mediaType === "image" && (
+          <div className="mt-2">
+            <ImageUploader value={imageUrl} onChange={setImageUrl} onRemove={() => setImageUrl("")} />
+          </div>
+        )}
+        {mediaType === "video" && (
+          <div className="mt-2">
+            <VideoUploader value={videoUrl} onChange={setVideoUrl} onRemove={() => setVideoUrl("")} />
           </div>
         )}
       </div>
