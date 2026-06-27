@@ -53,7 +53,7 @@ ${postSummary}
 出力は日本語で、マークダウン形式で読みやすくまとめてください。`;
 
     const response = await getClient().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 800,
       temperature: 0.7,

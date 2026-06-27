@@ -24,6 +24,10 @@ export default function DraftsPage() {
   const [scheduledDateTime, setScheduledDateTime] = useState("");
   const [scheduling, setScheduling] = useState(false);
 
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
   const handlePublish = async (post: Post) => {
     const brand = brands.find((b) => b.id === post.brandId);
     if (!brand) { setError("ブランド情報が見つかりません"); return; }
@@ -56,6 +60,25 @@ export default function DraftsPage() {
       setError((e as Error).message);
     } finally {
       setPublishing(null);
+    }
+  };
+
+  const openEditModal = (post: Post) => {
+    setEditContent(post.content);
+    setEditingPost(post);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingPost || !editContent.trim()) return;
+    setEditSaving(true);
+    try {
+      await updatePost(editingPost.id, { content: editContent });
+      await refetch();
+      setEditingPost(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -123,10 +146,60 @@ export default function DraftsPage() {
                   onDelete={remove}
                   onPublish={handlePublish}
                   onSchedule={openScheduleModal}
+                  onEdit={openEditModal}
                 />
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 編集モーダル */}
+      {editingPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800">
+            <h3 className="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">
+              下書きを編集
+            </h3>
+
+            {/* メディアプレビュー（読み取り専用） */}
+            {editingPost.imageUrl && (
+              <div className="mb-3">
+                <img src={editingPost.imageUrl} alt="添付画像" className="max-h-40 rounded-lg object-cover" />
+              </div>
+            )}
+            {editingPost.imageUrls && editingPost.imageUrls.length > 0 && (
+              <div className="mb-3 flex gap-2 overflow-x-auto">
+                {editingPost.imageUrls.map((url, i) => (
+                  <img key={i} src={url} alt={`画像${i + 1}`} className="h-24 w-24 flex-shrink-0 rounded-lg object-cover" />
+                ))}
+              </div>
+            )}
+            {editingPost.videoUrl && (
+              <div className="mb-3">
+                <video src={editingPost.videoUrl} controls className="max-h-40 w-full rounded-lg" />
+              </div>
+            )}
+
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={8}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm leading-relaxed text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
+            <p className="mt-1 text-right text-xs text-gray-400 dark:text-gray-500">
+              {editContent.length} 文字
+            </p>
+
+            <div className="mt-4 flex gap-3">
+              <Button onClick={handleEditSave} loading={editSaving} className="flex-1">
+                保存
+              </Button>
+              <Button variant="secondary" onClick={() => setEditingPost(null)} className="flex-1">
+                キャンセル
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

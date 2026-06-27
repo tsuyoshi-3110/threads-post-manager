@@ -13,6 +13,7 @@ interface Props {
   onDelete?: (id: string) => void;
   onPublish?: (post: Post) => void;
   onSchedule?: (post: Post) => void;
+  onEdit?: (post: Post) => void;
   showActions?: boolean;
 }
 
@@ -27,6 +28,7 @@ export const PostCard = ({
   onDelete,
   onPublish,
   onSchedule,
+  onEdit,
   showActions = true,
 }: Props) => {
   const createdAt = toDate(post.createdAt);
@@ -60,6 +62,25 @@ export const PostCard = ({
         {post.content}
       </p>
 
+      {/* メディアプレビュー */}
+      {post.imageUrl && (
+        <div className="mt-3">
+          <img src={post.imageUrl} alt="添付画像" className="max-h-48 rounded-lg object-cover" />
+        </div>
+      )}
+      {post.imageUrls && post.imageUrls.length > 0 && (
+        <div className="mt-3 flex gap-2 overflow-x-auto">
+          {post.imageUrls.map((url, i) => (
+            <img key={i} src={url} alt={`画像${i + 1}`} className="h-32 w-32 flex-shrink-0 rounded-lg object-cover" />
+          ))}
+        </div>
+      )}
+      {post.videoUrl && (
+        <div className="mt-3">
+          <video src={post.videoUrl} controls className="max-h-48 w-full rounded-lg" />
+        </div>
+      )}
+
       {scheduledAt && post.status === "scheduled" && (
         <p className="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
           📅 {format(scheduledAt, "yyyy/MM/dd HH:mm", { locale: ja })} に投稿予定
@@ -81,6 +102,11 @@ export const PostCard = ({
           {post.status === "draft" && onSchedule && (
             <Button size="sm" variant="secondary" onClick={() => onSchedule(post)}>
               🕐 予約投稿
+            </Button>
+          )}
+          {post.status === "draft" && onEdit && (
+            <Button size="sm" variant="secondary" onClick={() => onEdit(post)}>
+              ✏️ 編集
             </Button>
           )}
           {onDelete && (

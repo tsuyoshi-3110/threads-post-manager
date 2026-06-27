@@ -49,7 +49,7 @@ ${brandContext ? `【ブランド情報】\n${brandContext}\n` : ""}
     });
 
     const response = await getClient().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5",
       messages: [
         { role: "system", content: systemPrompt },
         ...formattedMessages,
