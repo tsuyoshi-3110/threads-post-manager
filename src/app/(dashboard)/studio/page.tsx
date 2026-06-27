@@ -263,7 +263,7 @@ export default function StudioPage() {
   if (brandsLoading) return <LoadingSpinner className="py-20" />;
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col">
+    <div className="flex h-[calc(100dvh-14rem)] flex-col md:h-[calc(100vh-8rem)]">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
