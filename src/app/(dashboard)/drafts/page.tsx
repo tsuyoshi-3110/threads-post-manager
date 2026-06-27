@@ -12,6 +12,17 @@ import { updatePost } from "@/lib/firebase/firestore";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+import { ImageUploader } from "@/components/post/ImageUploader";
+import { VideoUploader } from "@/components/post/VideoUploader";
+
+type MediaType = "text" | "image" | "carousel" | "video";
+
+function detectMediaType(post: Post): MediaType {
+  if (post.videoUrl) return "video";
+  if (post.imageUrls && post.imageUrls.length >= 2) return "carousel";
+  if (post.imageUrl) return "image";
+  return "text";
+}
 
 export default function DraftsPage() {
   const { posts, loading, remove, refetch } = usePosts("draft");
@@ -26,6 +37,10 @@ export default function DraftsPage() {
 
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [editMediaType, setEditMediaType] = useState<MediaType>("text");
+  const [editImageUrl, setEditImageUrl] = useState("");
+  const [editImageUrls, setEditImageUrls] = useState<string[]>(["", ""]);
+  const [editVideoUrl, setEditVideoUrl] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
   const handlePublish = async (post: Post) => {
@@ -64,7 +79,12 @@ export default function DraftsPage() {
   };
 
   const openEditModal = (post: Post) => {
+    const mediaType = detectMediaType(post);
     setEditContent(post.content);
+    setEditMediaType(mediaType);
+    setEditImageUrl(post.imageUrl ?? "");
+    setEditImageUrls(post.imageUrls && post.imageUrls.length >= 2 ? [...post.imageUrls] : ["", ""]);
+    setEditVideoUrl(post.videoUrl ?? "");
     setEditingPost(post);
   };
 
@@ -72,7 +92,12 @@ export default function DraftsPage() {
     if (!editingPost || !editContent.trim()) return;
     setEditSaving(true);
     try {
-      await updatePost(editingPost.id, { content: editContent });
+      await updatePost(editingPost.id, {
+        content: editContent,
+        imageUrl: editMediaType === "image" && editImageUrl ? editImageUrl : null,
+        imageUrls: editMediaType === "carousel" ? editImageUrls.filter(Boolean) : null,
+        videoUrl: editMediaType === "video" && editVideoUrl ? editVideoUrl : null,
+      });
       await refetch();
       setEditingPost(null);
     } catch (e) {
@@ -109,6 +134,8 @@ export default function DraftsPage() {
   };
 
   if (loading) return <LoadingSpinner className="py-20" />;
+
+  const fieldClass = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100";
 
   return (
     <div>
@@ -157,34 +184,102 @@ export default function DraftsPage() {
       {/* 編集モーダル */}
       {editingPost && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800">
+          <div className="w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800" style={{ maxHeight: "90vh" }}>
             <h3 className="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">
               下書きを編集
             </h3>
 
-            {/* メディアプレビュー（読み取り専用） */}
-            {editingPost.imageUrl && (
-              <div className="mb-3">
-                <img src={editingPost.imageUrl} alt="添付画像" className="max-h-40 rounded-lg object-cover" />
-              </div>
-            )}
-            {editingPost.imageUrls && editingPost.imageUrls.length > 0 && (
-              <div className="mb-3 flex gap-2 overflow-x-auto">
-                {editingPost.imageUrls.map((url, i) => (
-                  <img key={i} src={url} alt={`画像${i + 1}`} className="h-24 w-24 flex-shrink-0 rounded-lg object-cover" />
+            {/* メディアタイプ選択 */}
+            <div className="mb-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                投稿タイプ
+              </label>
+              <div className="flex gap-2">
+                {(["text", "image", "video", "carousel"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setEditMediaType(type)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      editMediaType === type
+                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                        : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {type === "text" ? "テキスト" : type === "image" ? "画像" : type === "video" ? "動画" : "カルーセル"}
+                  </button>
                 ))}
               </div>
-            )}
-            {editingPost.videoUrl && (
-              <div className="mb-3">
-                <video src={editingPost.videoUrl} controls className="max-h-40 w-full rounded-lg" />
+            </div>
+
+            {/* メディアアップロード */}
+            {editMediaType === "image" && (
+              <div className="mb-4 space-y-3">
+                <ImageUploader value={editImageUrl} onChange={setEditImageUrl} onRemove={() => setEditImageUrl("")} />
+                <div>
+                  <p className="mb-1 text-xs text-gray-400 dark:text-gray-500">または公開 URL を直接入力</p>
+                  <input
+                    type="url"
+                    value={editImageUrl}
+                    onChange={(e) => setEditImageUrl(e.target.value)}
+                    placeholder="https://i.imgur.com/example.jpg"
+                    className={fieldClass}
+                  />
+                </div>
               </div>
             )}
 
+            {editMediaType === "carousel" && (
+              <div className="mb-4 space-y-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400">2〜10枚の画像をアップロードしてください</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {editImageUrls.map((url, i) => (
+                    <ImageUploader
+                      key={i}
+                      value={url}
+                      onChange={(newUrl) => {
+                        const next = [...editImageUrls];
+                        next[i] = newUrl;
+                        setEditImageUrls(next);
+                      }}
+                      label={`画像 ${i + 1}`}
+                      onRemove={
+                        editImageUrls.length > 2
+                          ? () => setEditImageUrls(editImageUrls.filter((_, idx) => idx !== i))
+                          : () => {
+                              const next = [...editImageUrls];
+                              next[i] = "";
+                              setEditImageUrls(next);
+                            }
+                      }
+                    />
+                  ))}
+                  {editImageUrls.length < 10 && (
+                    <button
+                      onClick={() => setEditImageUrls([...editImageUrls, ""])}
+                      className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 py-8 text-sm text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 dark:border-gray-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                    >
+                      <span className="text-2xl">+</span>
+                      <span className="mt-1 text-xs">画像を追加</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {editMediaType === "video" && (
+              <div className="mb-4">
+                <VideoUploader value={editVideoUrl} onChange={setEditVideoUrl} onRemove={() => setEditVideoUrl("")} />
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                  ※ 動画は Threads での処理に最大90秒かかります
+                </p>
+              </div>
+            )}
+
+            {/* 投稿文 */}
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              rows={8}
+              rows={7}
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm leading-relaxed text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             />
             <p className="mt-1 text-right text-xs text-gray-400 dark:text-gray-500">
