@@ -55,8 +55,7 @@ ${postSummary}
     const response = await getClient().chat.completions.create({
       model: "gpt-5",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 800,
-      temperature: 0.7,
+      max_completion_tokens: 16000,
     });
 
     const analysis = response.choices[0].message.content ?? "";

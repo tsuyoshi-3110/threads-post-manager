@@ -54,8 +54,7 @@ ${brandContext ? `【ブランド情報】\n${brandContext}\n` : ""}
         { role: "system", content: systemPrompt },
         ...formattedMessages,
       ],
-      max_tokens: 600,
-      temperature: 0.8,
+      max_completion_tokens: 8000,
     });
 
     const content = response.choices[0].message.content ?? "";
