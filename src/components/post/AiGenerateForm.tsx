@@ -15,11 +15,13 @@ export const AiGenerateForm = ({ brandName, brandDescription, onGenerated }: Pro
   const [tone, setTone] = useState<"casual" | "professional" | "friendly">("casual");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [generatedText, setGeneratedText] = useState("");
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     setError("");
+    setGeneratedText("");
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -28,12 +30,18 @@ export const AiGenerateForm = ({ brandName, brandDescription, onGenerated }: Pro
       });
       if (!res.ok) throw new Error("生成に失敗しました");
       const data = await res.json();
-      onGenerated(data.content);
+      setGeneratedText(data.content);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApply = () => {
+    if (!generatedText.trim()) return;
+    onGenerated(generatedText);
+    setGeneratedText("");
   };
 
   const fieldClass =
@@ -86,6 +94,35 @@ export const AiGenerateForm = ({ brandName, brandDescription, onGenerated }: Pro
         >
           生成する
         </Button>
+
+        {/* 生成結果プレビュー＆編集エリア */}
+        {generatedText && (
+          <div className="space-y-2 border-t border-purple-200 pt-3 dark:border-purple-700/50">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                生成結果（直接編集できます）
+              </p>
+              <span className="text-xs text-gray-400">{generatedText.length} 文字</span>
+            </div>
+            <textarea
+              value={generatedText}
+              onChange={(e) => setGeneratedText(e.target.value)}
+              rows={6}
+              className="w-full rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm leading-relaxed text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 dark:border-purple-600 dark:bg-gray-800 dark:text-gray-100"
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleApply} className="flex-1">
+                ✅ この内容を使う
+              </Button>
+              <button
+                onClick={() => setGeneratedText("")}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+              >
+                破棄
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
