@@ -44,6 +44,8 @@ export default function StudioPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [scheduleModal, setScheduleModal] = useState<{ idx: number; content: string } | null>(null);
   const [scheduleDateTime, setScheduleDateTime] = useState("");
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [chatImageUrl, setChatImageUrl] = useState("");
   const [uploadingChatImage, setUploadingChatImage] = useState(false);
   const chatImageInputRef = useRef<HTMLInputElement>(null);
@@ -201,6 +203,28 @@ export default function StudioPage() {
     }
   };
 
+  const startEdit = (idx: number, text: string) => {
+    setEditingIdx(idx);
+    setEditingText(text);
+  };
+
+  const confirmEdit = (idx: number) => {
+    setMessages((prev) =>
+      prev.map((msg, i) => {
+        if (i !== idx) return msg;
+        const postMatch = msg.content.match(/\[POST\]([\s\S]*?)\[\/POST\]/);
+        const commentText = postMatch
+          ? msg.content.replace(/\[POST\][\s\S]*?\[\/POST\]/, "").trim()
+          : "";
+        const newContent = commentText
+          ? `${commentText}\n[POST]${editingText}[/POST]`
+          : `[POST]${editingText}[/POST]`;
+        return { ...msg, content: newContent };
+      })
+    );
+    setEditingIdx(null);
+  };
+
   const openScheduleModal = (content: string, idx: number) => {
     setScheduleDateTime(defaultScheduleTime());
     setScheduleModal({ idx, content });
@@ -329,24 +353,91 @@ export default function StudioPage() {
                         {/* 投稿文部分 */}
                         {postText && (
                           <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800/50 dark:bg-blue-900/20">
-                            <p className="mb-2 text-xs font-medium text-blue-600 dark:text-blue-400">投稿案</p>
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-900 dark:text-gray-100">{postText}</p>
+                            <div className="mb-2 flex items-center justify-between">
+                              <p className="text-xs font-medium text-blue-600 dark:text-blue-400">投稿案</p>
+                              {editingIdx !== idx && (
+                                <button
+                                  onClick={() => startEdit(idx, postText)}
+                                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                >
+                                  ✏️ 編集
+                                </button>
+                              )}
+                            </div>
+
+                            {editingIdx === idx ? (
+                              <div className="space-y-2">
+                                <textarea
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  rows={5}
+                                  className="w-full rounded-xl border border-blue-300 bg-white px-3 py-2 text-sm leading-relaxed text-gray-900 focus:border-blue-500 focus:outline-none dark:border-blue-600 dark:bg-gray-800 dark:text-gray-100"
+                                />
+                                <p className="text-right text-xs text-gray-400">{editingText.length} 文字</p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => confirmEdit(idx)}
+                                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                                  >
+                                    確定
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingIdx(null)}
+                                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                  >
+                                    キャンセル
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-900 dark:text-gray-100">{postText}</p>
+                            )}
+
+                            {/* メディア選択 */}
+                            <div className="mt-3 border-t border-blue-100 pt-3 dark:border-blue-800/30">
+                              <div className="flex gap-2">
+                                {(["none", "image", "video"] as const).map((type) => (
+                                  <button
+                                    key={type}
+                                    onClick={() => { setMediaType(type); setImageUrl(""); setVideoUrl(""); }}
+                                    className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                      mediaType === type
+                                        ? "border-blue-500 bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300"
+                                        : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                                    }`}
+                                  >
+                                    {type === "none" ? "テキストのみ" : type === "image" ? "🖼️ 画像" : "🎬 動画"}
+                                  </button>
+                                ))}
+                              </div>
+                              {mediaType === "image" && (
+                                <div className="mt-2">
+                                  <ImageUploader value={imageUrl} onChange={setImageUrl} onRemove={() => setImageUrl("")} />
+                                </div>
+                              )}
+                              {mediaType === "video" && (
+                                <div className="mt-2">
+                                  <VideoUploader value={videoUrl} onChange={setVideoUrl} onRemove={() => setVideoUrl("")} />
+                                </div>
+                              )}
+                            </div>
+
                             <div className="mt-3 flex flex-wrap gap-2">
                               <button
-                                onClick={() => saveDraft(postText, idx)}
+                                onClick={() => saveDraft(editingIdx === idx ? editingText : postText, idx)}
                                 disabled={savingId === idx}
                                 className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 disabled:opacity-50"
                               >
                                 {savingId === idx ? "保存中..." : "📝 下書き保存"}
                               </button>
                               <button
-                                onClick={() => openScheduleModal(postText, idx)}
+                                onClick={() => openScheduleModal(editingIdx === idx ? editingText : postText, idx)}
                                 className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
                               >
                                 🕐 予約投稿
                               </button>
                               <button
-                                onClick={() => publishNow(postText, idx)}
+                                onClick={() => publishNow(editingIdx === idx ? editingText : postText, idx)}
                                 disabled={publishingId === idx}
                                 className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                               >
@@ -374,35 +465,6 @@ export default function StudioPage() {
               </div>
             )}
             <div ref={bottomRef} />
-          </div>
-        )}
-      </div>
-
-      {/* メディア添付 */}
-      <div className="mt-2">
-        <div className="flex gap-2">
-          {(["none", "image", "video"] as const).map((type) => (
-            <button
-              key={type}
-              onClick={() => { setMediaType(type); setImageUrl(""); setVideoUrl(""); }}
-              className={`rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
-                mediaType === type
-                  ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              }`}
-            >
-              {type === "none" ? "📝 テキストのみ" : type === "image" ? "🖼️ 画像" : "🎬 動画"}
-            </button>
-          ))}
-        </div>
-        {mediaType === "image" && (
-          <div className="mt-2">
-            <ImageUploader value={imageUrl} onChange={setImageUrl} onRemove={() => setImageUrl("")} />
-          </div>
-        )}
-        {mediaType === "video" && (
-          <div className="mt-2">
-            <VideoUploader value={videoUrl} onChange={setVideoUrl} onRemove={() => setVideoUrl("")} />
           </div>
         )}
       </div>
