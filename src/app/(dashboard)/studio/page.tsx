@@ -14,6 +14,7 @@ import { Timestamp } from "firebase/firestore";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
 }
 
 const SUGGESTIONS = [
@@ -43,6 +44,9 @@ export default function StudioPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [scheduleModal, setScheduleModal] = useState<{ idx: number; content: string } | null>(null);
   const [scheduleDateTime, setScheduleDateTime] = useState("");
+  const [chatImageUrl, setChatImageUrl] = useState("");
+  const [uploadingChatImage, setUploadingChatImage] = useState(false);
+  const chatImageInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const toLocalDateTimeString = (date: Date) => {
@@ -64,12 +68,29 @@ export default function StudioPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  const uploadChatImage = async (file: File) => {
+    setUploadingChatImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.url) setChatImageUrl(data.url);
+    } catch {
+      alert("画像のアップロードに失敗しました");
+    } finally {
+      setUploadingChatImage(false);
+    }
+  };
+
   const sendMessage = async (text?: string) => {
     const content = (text ?? input).trim();
-    if (!content || loading) return;
+    if ((!content && !chatImageUrl) || loading) return;
     setInput("");
 
-    const newMessages: Message[] = [...messages, { role: "user", content }];
+    const userMessage: Message = { role: "user", content: content || "この画像を見て投稿文を作って", ...(chatImageUrl ? { imageUrl: chatImageUrl } : {}) };
+    setChatImageUrl("");
+    const newMessages: Message[] = [...messages, userMessage];
     setMessages(newMessages);
     setLoading(true);
 
@@ -282,7 +303,10 @@ export default function StudioPage() {
                     if (msg.role === "user") {
                       return (
                         <div className="rounded-2xl bg-blue-600 px-4 py-3 text-sm leading-relaxed text-white">
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                          {msg.imageUrl && (
+                            <img src={msg.imageUrl} alt="添付画像" className="mb-2 max-h-48 rounded-lg object-cover" />
+                          )}
+                          {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
                         </div>
                       );
                     }
@@ -434,28 +458,68 @@ export default function StudioPage() {
       )}
 
       {/* 入力エリア */}
-      <div className="mt-2 flex gap-2">
-        <textarea
-          rows={2}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-          placeholder={messages.length === 0 ? "投稿のテーマ・キーワードを入力...（⌘+Enter で送信）" : "修正指示を入力...（⌘+Enter で送信）"}
-          disabled={loading || !selectedBrandId}
-          className="flex-1 resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-        />
-        <button
-          onClick={() => sendMessage()}
-          disabled={!input.trim() || loading || !selectedBrandId}
-          className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          送信
-        </button>
+      <div className="mt-2 space-y-2">
+        {/* 画像プレビュー */}
+        {chatImageUrl && (
+          <div className="relative inline-block">
+            <img src={chatImageUrl} alt="添付画像" className="h-24 rounded-lg border border-gray-300 object-cover dark:border-gray-600" />
+            <button
+              onClick={() => setChatImageUrl("")}
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-xs text-white hover:bg-gray-900"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {uploadingChatImage && (
+          <p className="text-xs text-gray-500">アップロード中...</p>
+        )}
+
+        <div className="flex gap-2">
+          {/* 画像添付ボタン */}
+          <input
+            ref={chatImageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadChatImage(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            onClick={() => chatImageInputRef.current?.click()}
+            disabled={loading || !selectedBrandId || uploadingChatImage}
+            title="画像を添付"
+            className="flex items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-3 text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+          >
+            🖼️
+          </button>
+
+          <textarea
+            rows={2}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder={messages.length === 0 ? "投稿のテーマ・キーワードを入力...（⌘+Enter で送信）" : "修正指示を入力...（⌘+Enter で送信）"}
+            disabled={loading || !selectedBrandId}
+            className="flex-1 resize-y rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={(!input.trim() && !chatImageUrl) || loading || !selectedBrandId}
+            className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            送信
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -34,11 +34,25 @@ ${brandContext ? `【ブランド情報】\n${brandContext}\n` : ""}
 
 
 
+    // imageUrl が含まれるメッセージを vision 形式に変換
+    const formattedMessages = messages.map((m: { role: string; content: string; imageUrl?: string }) => {
+      if (m.imageUrl) {
+        return {
+          role: m.role,
+          content: [
+            { type: "text", text: m.content || "この画像を見て、Threads の投稿文を作ってください。" },
+            { type: "image_url", image_url: { url: m.imageUrl } },
+          ],
+        };
+      }
+      return { role: m.role, content: m.content };
+    });
+
     const response = await getClient().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        ...messages,
+        ...formattedMessages,
       ],
       max_tokens: 600,
       temperature: 0.8,
