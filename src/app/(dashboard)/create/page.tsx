@@ -21,10 +21,9 @@ export default function CreatePage() {
   const [content, setContent] = useState("");
   const [selectedBrandId, setSelectedBrandId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageUrls, setImageUrls] = useState<string[]>(["", ""]);
+  const [images, setImages] = useState<string[]>([""]);
   const [videoUrl, setVideoUrl] = useState("");
-  const [mediaType, setMediaType] = useState<"text" | "image" | "carousel" | "video">("text");
+  const [mediaType, setMediaType] = useState<"text" | "image" | "video">("text");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
@@ -32,6 +31,21 @@ export default function CreatePage() {
 
   const selectedBrand = brands.find((b) => b.id === selectedBrandId);
   const charsLeft = MAX_CHARS - content.length;
+  const validImages = images.filter(Boolean);
+
+  const mediaPayload = () => {
+    if (mediaType === "image") {
+      return {
+        imageUrl: validImages.length === 1 ? validImages[0] : null,
+        imageUrls: validImages.length > 1 ? validImages : null,
+        videoUrl: null,
+      };
+    }
+    if (mediaType === "video") {
+      return { imageUrl: null, imageUrls: null, videoUrl: videoUrl || null };
+    }
+    return { imageUrl: null, imageUrls: null, videoUrl: null };
+  };
 
   const saveDraft = async () => {
     if (!user || !selectedBrandId || !content.trim()) return;
@@ -46,9 +60,7 @@ export default function CreatePage() {
         scheduledAt: null,
         publishedAt: null,
         threadsPostId: null,
-        imageUrl: mediaType === "image" && imageUrl ? imageUrl : null,
-        imageUrls: mediaType === "carousel" ? imageUrls.filter(Boolean) : null,
-        videoUrl: mediaType === "video" && videoUrl ? videoUrl : null,
+        ...mediaPayload(),
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -75,9 +87,7 @@ export default function CreatePage() {
         scheduledAt: ts,
         publishedAt: null,
         threadsPostId: null,
-        imageUrl: mediaType === "image" && imageUrl ? imageUrl : null,
-        imageUrls: mediaType === "carousel" ? imageUrls.filter(Boolean) : null,
-        videoUrl: mediaType === "video" && videoUrl ? videoUrl : null,
+        ...mediaPayload(),
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -95,6 +105,7 @@ export default function CreatePage() {
     setPublishing(true);
     setError("");
     try {
+      const payload = mediaPayload();
       const postId = await createPost({
         brandId: selectedBrandId,
         userId: user.uid,
@@ -103,8 +114,7 @@ export default function CreatePage() {
         scheduledAt: null,
         publishedAt: null,
         threadsPostId: null,
-        imageUrl: mediaType === "image" && imageUrl ? imageUrl : null,
-        imageUrls: mediaType === "carousel" ? imageUrls.filter(Boolean) : null,
+        ...payload,
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -118,9 +128,9 @@ export default function CreatePage() {
           content,
           threadsUserId: selectedBrand!.threadsUserId,
           threadsAccessToken: selectedBrand!.threadsAccessToken,
-          imageUrl: mediaType === "image" && imageUrl ? imageUrl : undefined,
-          imageUrls: mediaType === "carousel" ? imageUrls.filter(Boolean) : undefined,
-          videoUrl: mediaType === "video" && videoUrl ? videoUrl : undefined,
+          imageUrl: payload.imageUrl ?? undefined,
+          imageUrls: payload.imageUrls ?? undefined,
+          videoUrl: payload.videoUrl ?? undefined,
         }),
       });
 
@@ -145,10 +155,22 @@ export default function CreatePage() {
     }
   };
 
+  const updateImage = (idx: number, url: string) => {
+    const next = [...images];
+    next[idx] = url;
+    setImages(next);
+  };
+
+  const removeImage = (idx: number) => {
+    if (images.length === 1) {
+      setImages([""]);
+    } else {
+      setImages(images.filter((_, i) => i !== idx));
+    }
+  };
+
   if (brandsLoading)
     return <p className="text-gray-500 dark:text-gray-400">読み込み中...</p>;
-
-  const fieldClass = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100";
 
   return (
     <div>
@@ -204,7 +226,7 @@ export default function CreatePage() {
               投稿タイプ
             </label>
             <div className="flex gap-2">
-              {(["text", "image", "video", "carousel"] as const).map((type) => (
+              {(["text", "image", "video"] as const).map((type) => (
                 <button
                   key={type}
                   onClick={() => setMediaType(type)}
@@ -214,7 +236,7 @@ export default function CreatePage() {
                       : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
                   }`}
                 >
-                  {type === "text" ? "テキスト" : type === "image" ? "画像" : type === "video" ? "動画" : "カルーセル"}
+                  {type === "text" ? "テキスト" : type === "image" ? "画像" : "動画"}
                 </button>
               ))}
             </div>
@@ -229,54 +251,23 @@ export default function CreatePage() {
             )}
 
             {mediaType === "image" && (
-              <div className="mt-3 space-y-3">
-                <ImageUploader
-                  value={imageUrl}
-                  onChange={setImageUrl}
-                />
-                <div>
-                  <p className="mb-1 text-xs text-gray-400 dark:text-gray-500">
-                    または公開 URL を直接入力（Imgur など）
-                  </p>
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://i.imgur.com/example.jpg"
-                    className={fieldClass}
-                  />
-                </div>
-              </div>
-            )}
-
-            {mediaType === "carousel" && (
-              <div className="mt-3 space-y-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400">2〜10枚の画像をアップロードしてください</p>
+              <div className="mt-3">
+                <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                  最大10枚まで追加できます（複数枚でカルーセル投稿になります）
+                </p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {imageUrls.map((url, i) => (
+                  {images.map((url, i) => (
                     <ImageUploader
                       key={i}
                       value={url}
-                      onChange={(newUrl) => {
-                        const next = [...imageUrls];
-                        next[i] = newUrl;
-                        setImageUrls(next);
-                      }}
-                      label={`画像 ${i + 1}`}
-                      onRemove={
-                        imageUrls.length > 2
-                          ? () => setImageUrls(imageUrls.filter((_, idx) => idx !== i))
-                          : () => {
-                              const next = [...imageUrls];
-                              next[i] = "";
-                              setImageUrls(next);
-                            }
-                      }
+                      onChange={(newUrl) => updateImage(i, newUrl)}
+                      label={images.length > 1 ? `画像 ${i + 1}` : undefined}
+                      onRemove={() => removeImage(i)}
                     />
                   ))}
-                  {imageUrls.length < 10 && (
+                  {images.length < 10 && (
                     <button
-                      onClick={() => setImageUrls([...imageUrls, ""])}
+                      onClick={() => setImages([...images, ""])}
                       className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 py-8 text-sm text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 dark:border-gray-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
                     >
                       <span className="text-2xl">+</span>
@@ -284,6 +275,11 @@ export default function CreatePage() {
                     </button>
                   )}
                 </div>
+                {validImages.length > 1 && (
+                  <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                    📋 {validImages.length} 枚選択中 → カルーセル投稿
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -358,9 +354,8 @@ export default function CreatePage() {
               loading={publishing}
               disabled={
                 !selectedBrandId || !content.trim() || charsLeft < 0 ||
-                (mediaType === "image" && !imageUrl) ||
-                (mediaType === "video" && !videoUrl) ||
-                (mediaType === "carousel" && imageUrls.filter(Boolean).length < 2)
+                (mediaType === "image" && validImages.length === 0) ||
+                (mediaType === "video" && !videoUrl)
               }
             >
               今すぐ投稿
