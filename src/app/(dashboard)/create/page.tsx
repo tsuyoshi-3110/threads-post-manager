@@ -46,6 +46,9 @@ export default function CreatePage() {
         scheduledAt: null,
         publishedAt: null,
         threadsPostId: null,
+        imageUrl: mediaType === "image" && imageUrl ? imageUrl : null,
+        imageUrls: mediaType === "carousel" ? imageUrls.filter(Boolean) : null,
+        videoUrl: mediaType === "video" && videoUrl ? videoUrl : null,
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -72,6 +75,9 @@ export default function CreatePage() {
         scheduledAt: ts,
         publishedAt: null,
         threadsPostId: null,
+        imageUrl: mediaType === "image" && imageUrl ? imageUrl : null,
+        imageUrls: mediaType === "carousel" ? imageUrls.filter(Boolean) : null,
+        videoUrl: mediaType === "video" && videoUrl ? videoUrl : null,
         aiGenerated: false,
         aiPrompt: null,
       });
