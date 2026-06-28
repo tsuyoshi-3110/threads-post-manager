@@ -58,6 +58,9 @@ export default function DraftsPage() {
           content: post.content,
           threadsUserId: brand.threadsUserId,
           threadsAccessToken: brand.threadsAccessToken,
+          imageUrl: post.imageUrl ?? undefined,
+          imageUrls: post.imageUrls ?? undefined,
+          videoUrl: post.videoUrl ?? undefined,
         }),
       });
       if (!res.ok) {
