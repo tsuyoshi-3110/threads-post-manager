@@ -6,13 +6,17 @@ export type PostStatus = "draft" | "scheduled" | "published" | "failed";
 
 export type PostPurpose = "daily" | "promotion" | "soft";
 
+export type PriceType = "onetime" | "subscription" | "both";
+
 export interface Product {
   id: string;
   userId: string;
   name: string;
   tagline: string;
   description: string;
+  priceType: PriceType;
   price: string;
+  subscriptionPrice: string;
   targetAudience: string;
   features: string[];
   url: string;

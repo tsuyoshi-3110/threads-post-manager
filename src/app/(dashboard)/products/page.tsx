@@ -7,15 +7,29 @@ import { createProduct, updateProduct, deleteProduct } from "@/lib/firebase/fire
 import { ImageUploader } from "@/components/post/ImageUploader";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { Product } from "@/types";
+import { Product, PriceType } from "@/types";
+
+const PRICE_TYPE_OPTIONS: { value: PriceType; label: string; desc: string }[] = [
+  { value: "onetime",      label: "単発購入",         desc: "買い切り型" },
+  { value: "subscription", label: "サブスク",          desc: "月額・年額" },
+  { value: "both",         label: "単発＋サブスク",    desc: "両方あり" },
+];
+
+const PRICE_TYPE_LABEL: Record<PriceType, string> = {
+  onetime:      "単発購入",
+  subscription: "サブスク",
+  both:         "単発＋サブスク",
+};
 
 const EMPTY_FORM = {
   name: "",
   tagline: "",
   description: "",
+  priceType: "onetime" as PriceType,
   price: "",
+  subscriptionPrice: "",
   targetAudience: "",
-  features: [""],
+  featuresText: "",   // テキストエリア用（改行区切り）
   url: "",
   imageUrl: null as string | null,
   imageUrls: null as string[] | null,
@@ -43,9 +57,11 @@ export default function ProductsPage() {
       name: p.name,
       tagline: p.tagline,
       description: p.description,
+      priceType: p.priceType ?? "onetime",
       price: p.price,
+      subscriptionPrice: p.subscriptionPrice ?? "",
       targetAudience: p.targetAudience,
-      features: p.features.length > 0 ? [...p.features] : [""],
+      featuresText: p.features.join("\n"),
       url: p.url,
       imageUrl: p.imageUrl,
       imageUrls: p.imageUrls,
@@ -58,18 +74,26 @@ export default function ProductsPage() {
     setSaving(true);
     setError("");
     try {
+      const features = form.featuresText
+        .split("\n")
+        .map((f) => f.trim())
+        .filter(Boolean);
+
       const data = {
         userId: user.uid,
         name: form.name.trim(),
         tagline: form.tagline.trim(),
         description: form.description.trim(),
+        priceType: form.priceType,
         price: form.price.trim(),
+        subscriptionPrice: form.subscriptionPrice.trim(),
         targetAudience: form.targetAudience.trim(),
-        features: form.features.filter(Boolean),
+        features,
         url: form.url.trim(),
         imageUrl: form.imageUrl,
         imageUrls: form.imageUrls,
       };
+
       if (editingProduct) {
         await updateProduct(editingProduct.id, data);
       } else {
@@ -89,16 +113,6 @@ export default function ProductsPage() {
     await deleteProduct(id);
     await refetch();
   };
-
-  const updateFeature = (i: number, val: string) => {
-    const next = [...form.features];
-    next[i] = val;
-    setForm((f) => ({ ...f, features: next }));
-  };
-
-  const addFeature = () => setForm((f) => ({ ...f, features: [...f.features, ""] }));
-  const removeFeature = (i: number) =>
-    setForm((f) => ({ ...f, features: f.features.filter((_, idx) => idx !== i) }));
 
   if (loading) return <LoadingSpinner className="py-20" />;
 
@@ -132,7 +146,12 @@ export default function ProductsPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{p.name}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">{p.name}</h3>
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                      {PRICE_TYPE_LABEL[p.priceType ?? "onetime"]}
+                    </span>
+                  </div>
                   {p.tagline && (
                     <p className="mt-0.5 text-sm text-blue-600 dark:text-blue-400">{p.tagline}</p>
                   )}
@@ -157,19 +176,17 @@ export default function ProductsPage() {
               {p.imageUrl && (
                 <img src={p.imageUrl} alt={p.name} className="mt-3 h-40 w-full rounded-lg object-cover" />
               )}
-              {p.imageUrls && p.imageUrls.length > 0 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto">
-                  {p.imageUrls.map((url, i) => (
-                    <img key={i} src={url} alt={`${p.name} ${i + 1}`} className="h-24 w-24 shrink-0 rounded-lg object-cover" />
-                  ))}
-                </div>
-              )}
 
               <div className="mt-3 space-y-1.5 text-sm text-gray-600 dark:text-gray-300">
-                {p.price && (
+                {/* 価格表示 */}
+                {(p.price || p.subscriptionPrice) && (
                   <div className="flex gap-2">
                     <span className="shrink-0 font-medium text-gray-500 dark:text-gray-400">価格</span>
-                    <span>{p.price}</span>
+                    <span>
+                      {p.priceType === "both"
+                        ? [p.price, p.subscriptionPrice].filter(Boolean).join(" / ")
+                        : p.price || p.subscriptionPrice}
+                    </span>
                   </div>
                 )}
                 {p.targetAudience && (
@@ -219,6 +236,7 @@ export default function ProductsPage() {
             </h3>
 
             <div className="space-y-4">
+              {/* 製品名 */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                   製品名 <span className="text-red-500">*</span>
@@ -232,6 +250,7 @@ export default function ProductsPage() {
                 />
               </div>
 
+              {/* キャッチコピー */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                   キャッチコピー
@@ -245,6 +264,7 @@ export default function ProductsPage() {
                 />
               </div>
 
+              {/* 製品説明 */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                   製品説明
@@ -258,33 +278,94 @@ export default function ProductsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    価格
-                  </label>
-                  <input
-                    type="text"
-                    value={form.price}
-                    onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                    placeholder="例：¥9,800/月"
-                    className={fieldClass}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    ターゲット
-                  </label>
-                  <input
-                    type="text"
-                    value={form.targetAudience}
-                    onChange={(e) => setForm((f) => ({ ...f, targetAudience: e.target.value }))}
-                    placeholder="例：個人事業主・中小企業"
-                    className={fieldClass}
-                  />
+              {/* 価格タイプ */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  価格タイプ
+                </label>
+                <div className="flex gap-2">
+                  {PRICE_TYPE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, priceType: opt.value }))}
+                      className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${
+                        form.priceType === opt.value
+                          ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                          : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      <div>{opt.label}</div>
+                      <div className="mt-0.5 text-gray-400 dark:text-gray-500" style={{ fontSize: "10px" }}>{opt.desc}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
+              {/* 価格入力 */}
+              <div className={`grid gap-3 ${form.priceType === "both" ? "grid-cols-2" : "grid-cols-1"}`}>
+                {(form.priceType === "onetime" || form.priceType === "both") && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      単発価格
+                    </label>
+                    <input
+                      type="text"
+                      value={form.price}
+                      onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                      placeholder="例：¥19,800（買い切り）"
+                      className={fieldClass}
+                    />
+                  </div>
+                )}
+                {(form.priceType === "subscription" || form.priceType === "both") && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      サブスク価格
+                    </label>
+                    <input
+                      type="text"
+                      value={form.subscriptionPrice}
+                      onChange={(e) => setForm((f) => ({ ...f, subscriptionPrice: e.target.value }))}
+                      placeholder="例：¥980/月"
+                      className={fieldClass}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ターゲット */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  ターゲット
+                </label>
+                <input
+                  type="text"
+                  value={form.targetAudience}
+                  onChange={(e) => setForm((f) => ({ ...f, targetAudience: e.target.value }))}
+                  placeholder="例：個人事業主・中小企業"
+                  className={fieldClass}
+                />
+              </div>
+
+              {/* 特徴・メリット（テキストエリア） */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  特徴・メリット（1行に1つ入力）
+                </label>
+                <textarea
+                  rows={5}
+                  value={form.featuresText}
+                  onChange={(e) => setForm((f) => ({ ...f, featuresText: e.target.value }))}
+                  placeholder={`例：\nAIが自動で文章を生成\n24時間チャット対応\nノーコードで構築可能`}
+                  className={fieldClass}
+                />
+                <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                  {form.featuresText.split("\n").filter((l) => l.trim()).length} 件入力済み
+                </p>
+              </div>
+
+              {/* URL */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                   LP・販売ページ URL
@@ -298,43 +379,10 @@ export default function ProductsPage() {
                 />
               </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                  特徴・メリット（AIが投稿文に活用します）
-                </label>
-                <div className="space-y-2">
-                  {form.features.map((f, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={f}
-                        onChange={(e) => updateFeature(i, e.target.value)}
-                        placeholder={`特徴 ${i + 1}`}
-                        className={fieldClass}
-                      />
-                      {form.features.length > 1 && (
-                        <button
-                          onClick={() => removeFeature(i)}
-                          className="shrink-0 rounded-lg border border-gray-300 px-2 text-xs text-gray-500 hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    onClick={addFeature}
-                    className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    ＋ 特徴を追加
-                  </button>
-                </div>
-              </div>
-
               {/* 製品画像 */}
               <div>
                 <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                  製品画像（サムネイル）
+                  製品画像
                 </label>
                 <ImageUploader
                   value={form.imageUrl ?? ""}
