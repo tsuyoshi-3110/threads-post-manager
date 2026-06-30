@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard", label: "ダッシュボード", icon: "📊" },
   { href: "/create", label: "投稿作成", icon: "✏️" },
   { href: "/studio", label: "AI スタジオ", icon: "✨" },
+  { href: "/planner", label: "AIプランナー", icon: "🗓️" },
   { href: "/drafts", label: "下書き", icon: "📝" },
   { href: "/scheduled", label: "予約投稿", icon: "🕐" },
   { href: "/calendar", label: "カレンダー", icon: "📅" },
@@ -23,11 +24,12 @@ const navItems = [
 const BOTTOM_TABS = [
   { href: "/dashboard", label: "ホーム", icon: "📊" },
   { href: "/create", label: "作成", icon: "✏️" },
+  { href: "/planner", label: "プランナー", icon: "🗓️" },
   { href: "/studio", label: "AI", icon: "✨" },
-  { href: "/drafts", label: "下書き", icon: "📝" },
 ];
 
 const MORE_ITEMS = [
+  { href: "/drafts", label: "下書き", icon: "📝" },
   { href: "/scheduled", label: "予約投稿", icon: "🕐" },
   { href: "/calendar", label: "カレンダー", icon: "📅" },
   { href: "/analytics", label: "分析", icon: "📈" },
