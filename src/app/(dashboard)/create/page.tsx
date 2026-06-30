@@ -4,18 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrands } from "@/hooks/useBrands";
+import { useProducts } from "@/hooks/useProducts";
 import { createPost, updatePost } from "@/lib/firebase/firestore";
 import { AiGenerateForm } from "@/components/post/AiGenerateForm";
 import { ImageUploader } from "@/components/post/ImageUploader";
 import { VideoUploader } from "@/components/post/VideoUploader";
 import { Button } from "@/components/ui/Button";
 import { Timestamp } from "firebase/firestore";
+import { PostPurpose } from "@/types";
 
 const MAX_CHARS = 500;
 
 export default function CreatePage() {
   const { user } = useAuth();
   const { brands, loading: brandsLoading } = useBrands();
+  const { products } = useProducts();
   const router = useRouter();
 
   const [content, setContent] = useState("");
@@ -24,14 +27,22 @@ export default function CreatePage() {
   const [images, setImages] = useState<string[]>([""]);
   const [videoUrl, setVideoUrl] = useState("");
   const [mediaType, setMediaType] = useState<"text" | "image" | "video">("text");
+  const [postPurpose, setPostPurpose] = useState<PostPurpose | "">("");
+  const [selectedProductId, setSelectedProductId] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const selectedBrand = brands.find((b) => b.id === selectedBrandId);
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
   const charsLeft = MAX_CHARS - content.length;
   const validImages = images.filter(Boolean);
+
+  const purposePayload = () => ({
+    postPurpose: postPurpose || null,
+    productId: selectedProductId || null,
+  });
 
   const mediaPayload = () => {
     if (mediaType === "image") {
@@ -61,6 +72,7 @@ export default function CreatePage() {
         publishedAt: null,
         threadsPostId: null,
         ...mediaPayload(),
+        ...purposePayload(),
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -88,6 +100,7 @@ export default function CreatePage() {
         publishedAt: null,
         threadsPostId: null,
         ...mediaPayload(),
+        ...purposePayload(),
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -115,6 +128,7 @@ export default function CreatePage() {
         publishedAt: null,
         threadsPostId: null,
         ...payload,
+        ...purposePayload(),
         aiGenerated: false,
         aiPrompt: null,
       });
@@ -209,6 +223,64 @@ export default function CreatePage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 投稿目的・製品選択 */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              投稿目的
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: "", label: "日常投稿" },
+                { value: "promotion", label: "📣 商品紹介" },
+                { value: "soft", label: "💡 ソフト誘導" },
+              ] as { value: PostPurpose | ""; label: string }[]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setPostPurpose(opt.value); if (!opt.value) setSelectedProductId(""); }}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    postPurpose === opt.value
+                      ? "border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
+                      : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {(postPurpose === "promotion" || postPurpose === "soft") && (
+              <div className="mt-2">
+                {products.length === 0 ? (
+                  <p className="text-xs text-orange-600 dark:text-orange-400">
+                    製品が登録されていません。
+                    <button onClick={() => router.push("/products")} className="ml-1 underline">製品管理で追加</button>
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {products.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedProductId(p.id === selectedProductId ? "" : p.id)}
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                          selectedProductId === p.id
+                            ? "border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
+                            : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedProduct && (
+                  <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800 dark:border-orange-800/40 dark:bg-orange-900/20 dark:text-orange-300">
+                    <span className="font-medium">{selectedProduct.name}</span> — {selectedProduct.tagline}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* AI生成フォーム */}

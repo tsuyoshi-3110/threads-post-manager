@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrands } from "@/hooks/useBrands";
+import { useProducts } from "@/hooks/useProducts";
 import { createPost, updatePost } from "@/lib/firebase/firestore";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ImageUploader } from "@/components/post/ImageUploader";
 import { VideoUploader } from "@/components/post/VideoUploader";
 import { Timestamp } from "firebase/firestore";
+import { PostPurpose } from "@/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -31,6 +33,7 @@ const SUGGESTIONS = [
 export default function StudioPage() {
   const { user } = useAuth();
   const { brands, loading: brandsLoading } = useBrands();
+  const { products } = useProducts();
   const router = useRouter();
 
   const [selectedBrandId, setSelectedBrandId] = useState("");
@@ -46,6 +49,8 @@ export default function StudioPage() {
   const [scheduleDateTime, setScheduleDateTime] = useState("");
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [postPurpose, setPostPurpose] = useState<PostPurpose | "">("");
+  const [selectedProductId, setSelectedProductId] = useState("");
   const [chatImageUrl, setChatImageUrl] = useState("");
   const [uploadingChatImage, setUploadingChatImage] = useState(false);
   const chatImageInputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +102,7 @@ export default function StudioPage() {
     setLoading(true);
 
     try {
+      const selectedProduct = products.find((p) => p.id === selectedProductId);
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,6 +110,8 @@ export default function StudioPage() {
           messages: newMessages,
           brandName: selectedBrand?.name ?? "",
           brandDescription: selectedBrand?.description ?? "",
+          postPurpose: postPurpose || undefined,
+          productContext: selectedProduct ?? undefined,
         }),
       });
       const data = await res.json();
@@ -298,6 +306,42 @@ export default function StudioPage() {
             {brand.name}
           </button>
         ))}
+      </div>
+
+      {/* 投稿目的・製品選択 */}
+      <div className="mb-3 flex flex-wrap gap-2 items-center">
+        <div className="flex gap-1.5">
+          {([
+            { value: "", label: "日常投稿" },
+            { value: "promotion", label: "📣 商品紹介" },
+            { value: "soft", label: "💡 ソフト誘導" },
+          ] as { value: PostPurpose | ""; label: string }[]).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => { setPostPurpose(opt.value); if (!opt.value) setSelectedProductId(""); }}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                postPurpose === opt.value
+                  ? "border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
+                  : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {(postPurpose === "promotion" || postPurpose === "soft") && products.length > 0 && (
+          <select
+            value={selectedProductId}
+            onChange={(e) => setSelectedProductId(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:border-orange-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+          >
+            <option value="">製品を選択...</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* チャットエリア */}

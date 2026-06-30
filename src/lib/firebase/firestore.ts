@@ -12,7 +12,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { getFirebaseDb } from "./config";
-import { Post, Brand, PostStatus } from "@/types";
+import { Post, Brand, PostStatus, Product } from "@/types";
 
 const db = () => getFirebaseDb();
 
@@ -128,6 +128,44 @@ export const updatePost = async (
 
 export const deletePost = async (postId: string) => {
   await deleteDoc(doc(db(), "posts", postId));
+};
+
+// --- Products ---
+
+export const getProducts = async (userId: string): Promise<Product[]> => {
+  const q = query(collection(db(), "products"), where("userId", "==", userId));
+  const snap = await getDocs(q);
+  const products = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product));
+  return products.sort((a, b) => {
+    const aMs = a.createdAt?.toMillis?.() ?? 0;
+    const bMs = b.createdAt?.toMillis?.() ?? 0;
+    return aMs - bMs;
+  });
+};
+
+export const createProduct = async (
+  data: Omit<Product, "id" | "createdAt" | "updatedAt">
+): Promise<string> => {
+  const ref = await addDoc(collection(db(), "products"), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+};
+
+export const updateProduct = async (
+  productId: string,
+  data: Partial<Omit<Product, "id" | "createdAt">>
+) => {
+  await updateDoc(doc(db(), "products", productId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteProduct = async (productId: string) => {
+  await deleteDoc(doc(db(), "products", productId));
 };
 
 // 予約投稿：scheduledAt が過去のもの（cron用）

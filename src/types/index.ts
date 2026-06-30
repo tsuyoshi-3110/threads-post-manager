@@ -4,6 +4,24 @@ export type BrandName = string;
 
 export type PostStatus = "draft" | "scheduled" | "published" | "failed";
 
+export type PostPurpose = "daily" | "promotion" | "soft";
+
+export interface Product {
+  id: string;
+  userId: string;
+  name: string;
+  tagline: string;
+  description: string;
+  price: string;
+  targetAudience: string;
+  features: string[];
+  url: string;
+  imageUrl: string | null;
+  imageUrls: string[] | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface Brand {
   id: string;
   name: BrandName;
@@ -29,6 +47,8 @@ export interface Post {
   videoUrl?: string | null;
   aiGenerated: boolean;
   aiPrompt: string | null;
+  postPurpose?: PostPurpose | null;
+  productId?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

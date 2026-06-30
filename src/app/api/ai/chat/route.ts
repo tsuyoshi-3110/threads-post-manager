@@ -9,7 +9,7 @@ const getClient = () => {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, brandName, brandDescription } = await req.json();
+    const { messages, brandName, brandDescription, productContext, postPurpose } = await req.json();
 
     if (!messages?.length) {
       return NextResponse.json({ error: "messages は必須です" }, { status: 400 });
@@ -17,9 +17,27 @@ export async function POST(req: NextRequest) {
 
     const brandContext = brandDescription || brandName || "";
 
+    const purposeGuide =
+      postPurpose === "promotion"
+        ? "【投稿目的】商品紹介。製品の魅力・メリットを伝え購買意欲を高める投稿を作ること。"
+        : postPurpose === "soft"
+        ? "【投稿目的】ソフト誘導。製品を直接宣伝せず、製品の世界観・価値観・問題提起を伝えて自然に興味を引く投稿を作ること。"
+        : "";
+
+    const productGuide = productContext
+      ? `【紹介製品】
+製品名: ${productContext.name}
+キャッチコピー: ${productContext.tagline}
+説明: ${productContext.description}
+価格: ${productContext.price}
+ターゲット: ${productContext.targetAudience}
+特徴: ${(productContext.features as string[]).filter(Boolean).join(" / ")}
+URL: ${productContext.url}`
+      : "";
+
     const systemPrompt = `あなたは優秀なSNSコピーライター兼クリエイティブパートナーです。ユーザーと対話しながらThreadsの投稿文を一緒に作ります。
 
-${brandContext ? `【ブランド情報】\n${brandContext}\n` : ""}
+${brandContext ? `【ブランド情報】\n${brandContext}\n` : ""}${purposeGuide ? `\n${purposeGuide}\n` : ""}${productGuide ? `\n${productGuide}\n` : ""}
 【返答フォーマット】
 投稿文は必ず [POST]〜[/POST] タグで囲んで出力すること。
 
