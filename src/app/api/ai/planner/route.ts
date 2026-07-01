@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const prompt = `あなたはSNSコンテンツプランナーです。
 ブランド「${brand.name}」（${brand.description || ""}）のThreads投稿計画を作成してください。
 
-【紹介製品】
+【紹介製品（ソフト誘導・商品紹介のみで使用）】
 ${productInfo}
 
 【投稿内訳】
@@ -63,6 +63,12 @@ ${productInfo}
 
 合計 ${total} 件のアイデアを以下のJSON配列で出力してください（他のテキストは不要）。
 purposeの割り当ては内訳通りにすること。
+
+【重要ルール】
+- 日常投稿（purpose: "daily"）のアイデアは製品・ビジネス・AIツールと完全に無関係にすること
+- 日常投稿のideaTitle・ideaDescriptionに製品名・サービス名・AI・テクノロジー関連ワードを含めないこと
+- 日常投稿は哲学・人間関係・自然・感情・ユーモア・日々の気づきなど普遍的なテーマにすること
+- ソフト誘導と商品紹介のみ製品情報を参照してよい
 
 [
   {

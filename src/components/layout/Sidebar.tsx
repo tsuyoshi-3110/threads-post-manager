@@ -17,6 +17,7 @@ const navItems = [
   { href: "/calendar", label: "カレンダー", icon: "📅" },
   { href: "/analytics", label: "分析", icon: "📈" },
   { href: "/history", label: "投稿履歴", icon: "📋" },
+  { href: "/calligraphy", label: "書風画像", icon: "🖌️" },
   { href: "/products", label: "製品管理", icon: "📦" },
   { href: "/brands", label: "ブランド設定", icon: "🏷️" },
 ];
@@ -34,6 +35,7 @@ const MORE_ITEMS = [
   { href: "/calendar", label: "カレンダー", icon: "📅" },
   { href: "/analytics", label: "分析", icon: "📈" },
   { href: "/history", label: "投稿履歴", icon: "📋" },
+  { href: "/calligraphy", label: "書風画像", icon: "🖌️" },
   { href: "/products", label: "製品管理", icon: "📦" },
   { href: "/brands", label: "ブランド設定", icon: "🏷️" },
 ];

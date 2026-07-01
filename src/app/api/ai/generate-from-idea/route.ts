@@ -20,9 +20,16 @@ export async function POST(req: NextRequest) {
   try {
     const { brand, product, purpose, ideaTitle, ideaDescription } = await req.json();
 
-    const productInfo = product
-      ? `\n【製品情報】\n製品名: ${product.name}\nキャッチコピー: ${product.tagline}\n説明: ${product.description}\n価格: ${product.price}\nターゲット: ${product.targetAudience}\n特徴: ${product.features?.filter(Boolean).join(" / ")}\nURL: ${product.url}`
-      : "";
+    // 日常投稿には製品情報を一切渡さない
+    const productInfo =
+      purpose !== "daily" && product
+        ? `\n【製品情報】\n製品名: ${product.name}\nキャッチコピー: ${product.tagline}\n説明: ${product.description}\n価格: ${product.price}\nターゲット: ${product.targetAudience}\n特徴: ${product.features?.filter(Boolean).join(" / ")}\nURL: ${product.url}`
+        : "";
+
+    const dailyRestriction =
+      purpose === "daily"
+        ? "\n- 製品・サービス・ビジネスには一切触れないこと\n- 純粋な日常・哲学・共感・ユーモアの投稿にすること"
+        : "";
 
     const prompt = `あなたは優秀なSNSコピーライターです。
 以下のアイデアをもとに、Threads投稿文を1つ作成してください。
@@ -38,7 +45,7 @@ export async function POST(req: NextRequest) {
 【ルール】
 - 200文字以内
 - ハッシュタグ2〜3個
-- 投稿文のみ出力（説明・タグなど不要）`;
+- 投稿文のみ出力（説明・タグなど不要）${dailyRestriction}`;
 
     const response = await getClient().chat.completions.create({
       model: "gpt-5",

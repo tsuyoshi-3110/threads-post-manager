@@ -30,6 +30,8 @@ export interface Brand {
   id: string;
   name: BrandName;
   description: string;
+  characterDescription?: string;
+  characterImageUrls?: string[];
   threadsUserId: string;
   threadsAccessToken: string;
   userId: string;
